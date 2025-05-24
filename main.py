@@ -1,0 +1,60 @@
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
+
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT
+from database.db import init_db, get_async_session
+from handlers import common, profile, events, ratings
+from middlewares.auth import AuthMiddleware
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# Команды бота
+async def set_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Начать работу с ботом"),
+        BotCommand(command="help", description="Получить справку"),
+        BotCommand(command="profile", description="Мой профиль"),
+        BotCommand(command="events", description="Мероприятия"),
+        BotCommand(command="create", description="Создать мероприятие"),
+        BotCommand(command="knowledge", description="База знаний"),
+    ]
+    await bot.set_my_commands(commands)
+
+async def main():
+    # Инициализация бота и диспетчера
+    bot = Bot(token=BOT_TOKEN)
+    storage = MemoryStorage()
+    dp = Dispatcher(storage=storage)
+    
+    # Инициализация базы данных
+    await init_db()
+    
+    # Регистрация обработчиков
+    dp.include_router(common.router)
+    dp.include_router(profile.router)
+    dp.include_router(events.router)
+    dp.include_router(ratings.router)
+    
+    # Регистрация middleware
+    dp.message.middleware(AuthMiddleware())
+    dp.callback_query.middleware(AuthMiddleware())
+    
+    # Установка команд бота
+    await set_commands(bot)
+    
+    # Удаление вебхука (на случай, если бот ранее использовал вебхук)
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # Запуск опроса обновлений
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+
+if __name__ == "__main__":
+    asyncio.run(main())
