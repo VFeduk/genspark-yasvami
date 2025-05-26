@@ -5,7 +5,6 @@ for key, value in os.environ.items():
 
 import asyncio
 import logging
-import os  # Добавьте этот импорт
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
@@ -39,13 +38,23 @@ async def set_commands(bot: Bot):
     await bot.set_my_commands(commands)
 
 async def main():
+    # Проверка токена перед инициализацией бота
+    if not BOT_TOKEN:
+        print("ОШИБКА: BOT_TOKEN не определен!")
+        return
+        
     # Инициализация бота и диспетчера
     bot = Bot(token=BOT_TOKEN)
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
     
     # Инициализация базы данных
-    await init_db()
+    try:
+        await init_db()
+        print("База данных успешно инициализирована")
+    except Exception as e:
+        print(f"ОШИБКА при инициализации базы данных: {e}")
+        return
     
     # Регистрация обработчиков
     dp.include_router(common.router)
@@ -62,6 +71,8 @@ async def main():
     
     # Удаление вебхука (на случай, если бот ранее использовал вебхук)
     await bot.delete_webhook(drop_pending_updates=True)
+    
+    print("Бот успешно запущен и начинает опрос обновлений")
     
     # Запуск опроса обновлений
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
