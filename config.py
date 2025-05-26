@@ -10,9 +10,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8118843770:AAHRFDNRFeW2mbFctEUdM82p9mAeRj73b
 # Настройки базы данных
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/yasami_bot")
 
-# Настройки базы данных
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/yasami_bot")
-
 # Настройки для webhook, если потребуется
 WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "")
 WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", f"/webhook/{BOT_TOKEN}")
