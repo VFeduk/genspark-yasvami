@@ -1,3 +1,8 @@
+import os
+print("DEBUG: Все переменные окружения:")
+for key, value in os.environ.items():
+    print(f"{key}: {value[:5]}..." if value and len(value) > 10 else f"{key}: {value}")
+
 import asyncio
 import logging
 import os  # Добавьте этот импорт
