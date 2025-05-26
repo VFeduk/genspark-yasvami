@@ -3,10 +3,15 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from config import DATABASE_URL
-from database.models import Base
 
 # Создание асинхронного движка SQLAlchemy
-engine = create_async_engine(DATABASE_URL, poolclass=NullPool, echo=False)
+# Убедимся, что URL начинается с postgresql+asyncpg://
+db_url = DATABASE_URL
+if not db_url.startswith("postgresql+asyncpg://"):
+    # Заменяем postgresql:// на postgresql+asyncpg://
+    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+engine = create_async_engine(db_url, poolclass=NullPool, echo=False)
 
 # Создание фабрики сессий
 async_session_factory = sessionmaker(
@@ -15,9 +20,16 @@ async_session_factory = sessionmaker(
 
 async def init_db():
     """Инициализация базы данных"""
-    async with engine.begin() as conn:
-        # Создаем таблицы, если они еще не существуют
-        await conn.run_sync(Base.metadata.create_all)
+    print(f"Инициализация базы данных с URL: {db_url}")
+    try:
+        async with engine.begin() as conn:
+            # Создаем таблицы, если они еще не существуют
+            from database.models import Base
+            await conn.run_sync(Base.metadata.create_all)
+        print("База данных успешно инициализирована")
+    except Exception as e:
+        print(f"Ошибка при инициализации базы данных: {e}")
+        raise
 
 async def get_async_session():
     """Асинхронный контекстный менеджер для сессии БД"""
