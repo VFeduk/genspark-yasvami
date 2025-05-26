@@ -4,8 +4,11 @@ from dotenv import load_dotenv
 # Загрузка переменных окружения из .env файла
 load_dotenv()
 
-# Токен бота Telegram
+# Токен бота Telegram с запасным вариантом для отладки
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8118843770:AAHRFDNRFeW2mbFctEUdM82p9mAeRj73b78")
+
+# Настройки базы данных
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/yasami_bot")
 
 # Настройки базы данных
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost/yasami_bot")
