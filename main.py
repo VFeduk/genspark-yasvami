@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os  # Добавьте этот импорт
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
@@ -8,6 +9,10 @@ from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_POR
 from database.db import init_db, get_async_session
 from handlers import common, profile, events, ratings
 from middlewares.auth import AuthMiddleware
+
+# Добавьте эти строки для отладки
+print("DEBUG: BOT_TOKEN from config:", BOT_TOKEN)
+print("DEBUG: BOT_TOKEN from environment:", os.environ.get("BOT_TOKEN"))
 
 # Настройка логирования
 logging.basicConfig(
