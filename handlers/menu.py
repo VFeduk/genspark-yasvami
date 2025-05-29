@@ -2,7 +2,6 @@ import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.filters import CommandStart, Command
-from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
@@ -40,7 +39,7 @@ async def cmd_start(message: Message):
         )
 
 # Обработчик нажатия на кнопку "СТАРТ"
-@router.callback_query(Text("start_bot"))
+@router.callback_query(F.data == "start_bot")
 async def process_start_button(callback: CallbackQuery):
     await callback.answer()  # Подтверждаем колбэк
 
@@ -51,7 +50,7 @@ async def process_start_button(callback: CallbackQuery):
     )
 
 # Обработчик кнопки "Мой профиль"
-@router.message(Text("Мой профиль"))
+@router.message(F.text == "Мой профиль")
 async def show_profile(message: Message):
     # Здесь будет логика получения данных профиля
     await message.answer(
@@ -60,7 +59,7 @@ async def show_profile(message: Message):
     # Дальше можно добавить логику отображения профиля
 
 # Обработчик кнопки "Создать мероприятие"
-@router.message(Text("Создать мероприятие"))
+@router.message(F.text == "Создать мероприятие")
 async def create_event(message: Message, state: FSMContext):
     # Отправляем сообщение о необходимости ознакомиться с правилами
     await message.answer(
@@ -71,7 +70,7 @@ async def create_event(message: Message, state: FSMContext):
     await state.set_state(MenuStates.waiting_for_rules_confirmation)
 
 # Обработчик кнопки "Посмотреть мероприятия"
-@router.message(Text("Посмотреть мероприятия"))
+@router.message(F.text == "Посмотреть мероприятия")
 async def view_events(message: Message):
     # Здесь будет логика получения и отображения мероприятий
     await message.answer(
@@ -80,7 +79,7 @@ async def view_events(message: Message):
     # Можно добавить логику отображения списка мероприятий
 
 # Обработчик кнопки "База знаний"
-@router.message(Text("База знаний"))
+@router.message(F.text == "База знаний")
 async def knowledge_base(message: Message):
     # Отображаем базу знаний
     await message.answer(
@@ -90,7 +89,7 @@ async def knowledge_base(message: Message):
     # Можно добавить кнопки для навигации по базе знаний
 
 # Обработчики для правил
-@router.callback_query(Text("show_rules"))
+@router.callback_query(F.data == "show_rules")
 async def show_rules_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.edit_text(
@@ -99,7 +98,7 @@ async def show_rules_menu(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(MenuStates.showing_rules)
 
-@router.callback_query(Text("event_creation_rules"))
+@router.callback_query(F.data == "event_creation_rules")
 async def show_creation_rules(callback: CallbackQuery):
     await callback.answer()
     rules_text = """
@@ -137,7 +136,7 @@ async def show_creation_rules(callback: CallbackQuery):
         reply_markup=get_back_button()
     )
 
-@router.callback_query(Text("event_registration_rules"))
+@router.callback_query(F.data == "event_registration_rules")
 async def show_registration_rules(callback: CallbackQuery):
     await callback.answer()
     rules_text = """
@@ -180,7 +179,7 @@ async def show_registration_rules(callback: CallbackQuery):
         reply_markup=get_back_button()
     )
 
-@router.callback_query(Text("back_to_rules"))
+@router.callback_query(F.data == "back_to_rules")
 async def back_to_rules_menu(callback: CallbackQuery):
     await callback.answer()
     await callback.message.edit_text(
@@ -188,12 +187,12 @@ async def back_to_rules_menu(callback: CallbackQuery):
         reply_markup=get_rules_detail_keyboard()
     )
 
-@router.callback_query(Text("accept_rules"))
+@router.callback_query(F.data == "accept_rules")
 async def accept_rule(callback: CallbackQuery):
     await callback.answer("Вы приняли правила")
     await show_rules_menu(callback, None)
 
-@router.callback_query(Text("accept_all_rules"))
+@router.callback_query(F.data == "accept_all_rules")
 async def accept_all_rules(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Вы приняли все правила")
     await callback.message.answer(
@@ -202,7 +201,7 @@ async def accept_all_rules(callback: CallbackQuery, state: FSMContext):
     )
     await state.clear()  # Очищаем состояние FSM
 
-@router.callback_query(Text("back_to_main"))
+@router.callback_query(F.data == "back_to_main")
 async def back_to_main(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.delete()  # Удаляем сообщение с правилами
