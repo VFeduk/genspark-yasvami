@@ -10,23 +10,23 @@ from utils.states import MainState
 
 router = Router()
 
-# Обработка команды /start
-@router.message(Command("start"))
-async def cmd_start(message: Message, state: FSMContext):
-    """Обработчик команды /start"""
-    # Отправляем приветственное сообщение с изображением
-    welcome_image = FSInputFile(os.path.join(STATIC_DIR, "welcome.jpg"))
-    
-    await message.answer_photo(
-        photo=welcome_image,
-        caption="Привет! Это бот для поиска и организации неформальных мероприятий! "
-                "Здесь ты можешь найти новых друзей, компанию для любого вида досуга "
-                "или найти единомышленников на своем пути!) В общем нажимай кнопку \"СТАРТ\" и поехали!",
-        reply_markup=get_start_keyboard()
-    )
-    
-    # Устанавливаем состояние ожидания нажатия кнопки "СТАРТ"
-    await state.set_state(MainState.waiting_for_start)
+# --- УДАЛЁН ИЛИ ЗАКОММЕНТИРОВАН ОБРАБОТЧИК /start ---
+# @router.message(Command("start"))
+# async def cmd_start(message: Message, state: FSMContext):
+#     """Обработчик команды /start"""
+#     # Отправляем приветственное сообщение с изображением
+#     welcome_image = FSInputFile(os.path.join(STATIC_DIR, "welcome.jpg"))
+#     
+#     await message.answer_photo(
+#         photo=welcome_image,
+#         caption="Привет! Это бот для поиска и организации неформальных мероприятий! "
+#                 "Здесь ты можешь найти новых друзей, компанию для любого вида досуга "
+#                 "или найти единомышленников на своем пути!) В общем нажимай кнопку \"СТАРТ\" и поехали!",
+#         reply_markup=get_start_keyboard()
+#     )
+#     
+#     # Устанавливаем состояние ожидания нажатия кнопки "СТАРТ"
+#     await state.set_state(MainState.waiting_for_start)
 
 # Обработка нажатия на кнопку СТАРТ
 @router.callback_query(F.data == "start_button", MainState.waiting_for_start)
