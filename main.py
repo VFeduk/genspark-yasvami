@@ -11,7 +11,7 @@ from aiogram.types import BotCommand
 
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT
 from database.db import init_db, get_async_session
-from handlers import common, profile, events, ratings
+from handlers import common, profile, events, ratings, menu  # Добавили импорт menu
 from middlewares.auth import AuthMiddleware
 
 # Добавьте эти строки для отладки
@@ -20,7 +20,7 @@ print("DEBUG: BOT_TOKEN from environment:", os.environ.get("BOT_TOKEN"))
 
 # Настройка логирования
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Изменили на DEBUG для более подробных логов
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -57,6 +57,7 @@ async def main():
         return
     
     # Регистрация обработчиков
+    dp.include_router(menu.router)  # Добавили меню первым для приоритетной обработки
     dp.include_router(common.router)
     dp.include_router(profile.router)
     dp.include_router(events.router)
