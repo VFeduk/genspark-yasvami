@@ -1,7 +1,8 @@
 import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
-from aiogram.filters import CommandStart, Command, Text
+from aiogram.filters import CommandStart, Command
+from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
