@@ -2,7 +2,7 @@ import logging
 import os
 from handlers.registration import start_registration, check_user_exists
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import Message, CallbackQuery, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -26,7 +26,6 @@ class MenuStates(StatesGroup):
 async def cmd_start(message: Message, state: FSMContext):
     """Обработчик команды /start"""
     try:
-        # Попытка отправить приветственное сообщение с изображением
         welcome_image_path = os.path.join("static", "welcome.jpg")
         
         if os.path.exists(welcome_image_path):
@@ -39,7 +38,6 @@ async def cmd_start(message: Message, state: FSMContext):
                 reply_markup=get_start_keyboard()
             )
         else:
-            # Отправка без изображения, если файл не найден
             logger.warning(f"Изображение не найдено: {welcome_image_path}")
             await message.answer(
                 "Привет! Это бот для поиска и организации неформальных мероприятий! "
@@ -48,7 +46,6 @@ async def cmd_start(message: Message, state: FSMContext):
                 reply_markup=get_start_keyboard()
             )
         
-        # Устанавливаем состояние ожидания нажатия кнопки "СТАРТ"
         await state.set_state(MainState.waiting_for_start)
         logger.info(f"Пользователь {message.from_user.id} запустил бота")
         
@@ -85,14 +82,12 @@ async def cmd_help(message: Message):
 @router.callback_query(F.data == "start_bot")
 async def process_start_button(callback: CallbackQuery, state: FSMContext):
     """Обработчик нажатия на кнопку СТАРТ"""
-    await callback.answer()  # Подтверждаем колбэк
+    await callback.answer()
     
     try:
-        # Проверяем текущее состояние
         current_state = await state.get_state()
         logger.info(f"Нажатие на СТАРТ от пользователя {callback.from_user.id}, текущее состояние: {current_state}")
         
-        # Отправляем расширенное сообщение с главным меню
         welcome_text = (
             "🎉 <b>Добро пожаловать в главное меню!</b>\n\n"
             "Выберите нужный раздел из меню ниже:\n\n"
@@ -109,7 +104,6 @@ async def process_start_button(callback: CallbackQuery, state: FSMContext):
             reply_markup=get_main_menu_keyboard()
         )
         
-        # Сбрасываем состояние
         await state.clear()
         
     except Exception as e:
@@ -119,10 +113,11 @@ async def process_start_button(callback: CallbackQuery, state: FSMContext):
             reply_markup=get_main_menu_keyboard()
         )
 
-# Обработчики команд из меню бота (команды /profile, /create и т.д.)
+# Обработчики команд из меню бота
 @router.message(Command("profile"))
 async def cmd_profile(message: Message, state: FSMContext):
     """Обработчик команды /profile"""
+    logger.info(f"Команда /profile от пользователя {message.from_user.id}")
     await show_profile(message, state)
 
 @router.message(Command("create"))
@@ -146,15 +141,24 @@ async def show_profile(message: Message, state: FSMContext):
     """Обработчик кнопки 'Мой профиль'"""
     logger.info(f"Пользователь {message.from_user.id} нажал 'Мой профиль'")
     
-    # Проверяем, зарегистрирован ли пользователь
-    if not await check_user_exists(message.from_user.id):
-        await start_registration(message, state)
-    else:
+    try:
+        user_exists = await check_user_exists(message.from_user.id)
+        logger.info(f"Проверка пользователя {message.from_user.id}: существует = {user_exists}")
+        
+        if not user_exists:
+            await start_registration(message, state)
+        else:
+            await message.answer(
+                "👤 <b>Ваш профиль</b>\n\n"
+                "Информация о вашем профиле загружается...\n"
+                "Функция просмотра и редактирования профиля будет добавлена в следующем обновлении.",
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        logger.error(f"Ошибка в show_profile: {e}")
         await message.answer(
-            "👤 <b>Ваш профиль</b>\n\n"
-            "Информация о вашем профиле загружается...\n"
-            "Функция просмотра и редактирования профиля будет добавлена в следующем обновлении.",
-            parse_mode="HTML"
+            "❌ Произошла ошибка при загрузке профиля. Попробуйте позже.",
+            reply_markup=get_main_menu_keyboard()
         )
 
 @router.message(F.text == "Создать мероприятие")
@@ -199,18 +203,29 @@ async def knowledge_base(message: Message):
     logger.info(f"Пользователь {message.from_user.id} нажал 'База знаний'")
     
     knowledge_text = (
-        "📚 <b>База знаний</b>\n\n"
-        "Добро пожаловать в базу знаний бота \"Я с Вами\"!\n\n"
-        "Здесь вы найдете всю необходимую информацию:\n"
-        "• Правила создания мероприятий\n"
-        "• Правила участия в событиях\n"
-        "• Информацию о системе рейтинга\n"
-        "• Возможности VIP-статуса\n"
-        "• Общую информацию о проекте\n\n"
-        "📖 Используйте команды из меню бота для навигации по разделам."
+        "📚 <b>База знаний бота \"Я с Вами\"</b>\n\n"
+        "Добро пожаловать в базу знаний! Здесь вы найдете всю необходимую информацию "
+        "для комфортной работы с ботом.\n\n"
+        "📖 Выберите интересующий вас раздел:"
     )
     
-    await message.answer(knowledge_text, parse_mode="HTML")
+    knowledge_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📋 Правила создания мероприятий", callback_data="knowledge_creation_rules")],
+            [InlineKeyboardButton(text="✅ Правила участия в мероприятиях", callback_data="knowledge_participation_rules")],
+            [InlineKeyboardButton(text="⭐ О системе рейтинга", callback_data="knowledge_rating_system")],
+            [InlineKeyboardButton(text="👑 О VIP-статусе", callback_data="knowledge_vip_status")],
+            [InlineKeyboardButton(text="ℹ️ О проекте \"Я с Вами\"", callback_data="knowledge_about_project")],
+            [InlineKeyboardButton(text="❓ Часто задаваемые вопросы", callback_data="knowledge_faq")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        ]
+    )
+    
+    await message.answer(
+        knowledge_text,
+        parse_mode="HTML",
+        reply_markup=knowledge_keyboard
+    )
 
 # Обработчики для правил
 @router.callback_query(F.data == "show_rules")
@@ -306,21 +321,53 @@ async def accept_rule(callback: CallbackQuery):
 async def accept_all_rules(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Вы приняли все правила")
     
-    success_text = (
-        "✅ <b>Отлично!</b>\n\n"
-        "Вы согласились со всеми правилами.\n\n"
-        "Теперь для создания мероприятия необходимо:\n"
-        "1. Заполнить ваш профиль\n"
-        "2. Пройти процедуру создания мероприятия\n\n"
-        "Начните с заполнения профиля в соответствующем разделе."
-    )
+    # Проверяем, заполнен ли профиль пользователя
+    if not await check_user_exists(callback.from_user.id):
+        success_text = (
+            "✅ <b>Отлично!</b>\n\n"
+            "Вы согласились со всеми правилами.\n\n"
+            "Для создания мероприятия необходимо заполнить ваш профиль.\n\n"
+            "Нажмите кнопку ниже для быстрого перехода к заполнению профиля:"
+        )
+        
+        profile_keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="👤 Заполнить профиль", callback_data="start_profile_registration")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+            ]
+        )
+        
+        await callback.message.answer(
+            success_text,
+            parse_mode="HTML",
+            reply_markup=profile_keyboard
+        )
+    else:
+        success_text = (
+            "✅ <b>Отлично!</b>\n\n"
+            "Вы согласились со всеми правилами и ваш профиль заполнен.\n\n"
+            "🎉 Теперь вы можете создать мероприятие!\n\n"
+            "🔧 <i>Функция создания мероприятий будет добавлена в следующем обновлении.</i>"
+        )
+        
+        await callback.message.answer(
+            success_text,
+            parse_mode="HTML",
+            reply_markup=get_main_menu_keyboard()
+        )
     
-    await callback.message.answer(
-        success_text,
-        parse_mode="HTML",
-        reply_markup=get_main_menu_keyboard()
-    )
     await state.clear()
+
+@router.callback_query(F.data == "start_profile_registration")
+async def start_profile_from_rules(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    
+    # Запускаем регистрацию через обычное сообщение
+    await start_registration(callback.message, state)
 
 @router.callback_query(F.data == "back_to_main")
 async def back_to_main(callback: CallbackQuery, state: FSMContext):
@@ -335,6 +382,169 @@ async def back_to_main(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_main_menu_keyboard()
     )
     await state.clear()
+
+# Обработчики для разделов базы знаний
+@router.callback_query(F.data == "knowledge_creation_rules")
+async def show_knowledge_creation_rules(callback: CallbackQuery):
+    await callback.answer()
+    await show_creation_rules(callback)
+
+@router.callback_query(F.data == "knowledge_participation_rules")
+async def show_knowledge_participation_rules(callback: CallbackQuery):
+    await callback.answer()
+    await show_registration_rules(callback)
+
+@router.callback_query(F.data == "knowledge_rating_system")
+async def show_knowledge_rating_system(callback: CallbackQuery):
+    await callback.answer()
+    rating_text = """⭐ <b>Система рейтинга</b>
+
+<b>Как работает рейтинг:</b>
+• Каждый пользователь начинает со 100 баллами
+• Рейтинг изменяется на основе оценок других участников
+• Влияет на возможности создания и участия в мероприятиях
+
+<b>Изменение рейтинга:</b>
+⭐ 1 звезда = -10 баллов
+⭐⭐ 2 звезды = -5 баллов  
+⭐⭐⭐ 3 звезды = 0 баллов (без изменений)
+⭐⭐⭐⭐ 4 звезды = +5 баллов
+⭐⭐⭐⭐⭐ 5 звезд = +10 баллов
+
+<b>Ограничения по рейтингу:</b>
+• Рейтинг <20: запрет на создание мероприятий
+• Рейтинг 0: полная блокировка
+
+<b>Как улучшить рейтинг:</b>
+• Организовывайте качественные мероприятия
+• Будьте активным участником
+• Соблюдайте правила платформы"""
+    
+    back_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📚 Назад к базе знаний", callback_data="back_to_knowledge")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        rating_text,
+        parse_mode="HTML",
+        reply_markup=back_keyboard
+    )
+
+@router.callback_query(F.data == "knowledge_vip_status")
+async def show_knowledge_vip_status(callback: CallbackQuery):
+    await callback.answer()
+    vip_text = """👑 <b>VIP-статус</b>
+
+<b>Стоимость:</b> 1500 токенов (1 токен = 1 рубль)
+<b>Срок действия:</b> 30 дней
+
+<b>Привилегии VIP-пользователей:</b>
+• Полная информация о мероприятиях и участниках
+• Корректировка рейтинга до 3 раз в месяц
+• Возможность скрывать свои мероприятия
+• Приоритетное размещение в списках
+
+<b>Как получить VIP:</b>
+1. Перейдите в раздел "Мой профиль"
+2. Выберите "Приобрести VIP"
+3. Оплатите токенами
+4. Получите статус на 30 дней
+
+<b>Автопродление:</b>
+По истечении срока статус нужно продлевать вручную."""
+    
+    back_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📚 Назад к базе знаний", callback_data="back_to_knowledge")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        vip_text,
+        parse_mode="HTML",
+        reply_markup=back_keyboard
+    )
+
+@router.callback_query(F.data == "knowledge_about_project")
+async def show_knowledge_about_project(callback: CallbackQuery):
+    await callback.answer()
+    about_text = """ℹ️ <b>О проекте "Я с Вами"</b>
+
+<b>Наша миссия:</b>
+Помочь людям находить единомышленников и организовывать интересный досуг.
+
+<b>Для кого проект:</b>
+• Тех, кто переехал в новый город
+• Людей, ищущих друзей по интересам  
+• Организаторов мероприятий
+• Активных и общительных людей
+
+<b>Что мы предлагаем:</b>
+• Удобный поиск мероприятий по городам
+• Безопасную среду для знакомств
+• Систему рейтинга для качественного сообщества
+• Разнообразные категории досуга
+
+<b>Безопасность:</b>
+Мы следим за соблюдением правил и создаем комфортную атмосферу для всех участников."""
+    
+    back_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📚 Назад к базе знаний", callback_data="back_to_knowledge")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        about_text,
+        parse_mode="HTML",
+        reply_markup=back_keyboard
+    )
+
+@router.callback_query(F.data == "knowledge_faq")
+async def show_knowledge_faq(callback: CallbackQuery):
+    await callback.answer()
+    faq_text = """❓ <b>Часто задаваемые вопросы</b>
+
+<b>❔ Как начать пользоваться ботом?</b>
+Заполните профиль в разделе "Мой профиль" и изучите правила.
+
+<b>❔ Можно ли участвовать в мероприятиях бесплатно?</b>
+Да, основные функции бота полностью бесплатны.
+
+<b>❔ Что делать, если рейтинг снизился?</b>
+Участвуйте в мероприятиях, получайте хорошие оценки, соблюдайте правила.
+
+<b>❔ Как отменить участие в мероприятии?</b>
+Отмените регистрацию минимум за 12 часов до начала.
+
+<b>❔ Что такое токены и как их получить?</b>
+Токены - внутренняя валюта для VIP-функций. Приобретаются за реальные деньги.
+
+<b>❔ Как связаться с поддержкой?</b>
+Опишите проблему в чате - мы обязательно поможем!"""
+    
+    back_keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📚 Назад к базе знаний", callback_data="back_to_knowledge")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+        ]
+    )
+    
+    await callback.message.edit_text(
+        faq_text,
+        parse_mode="HTML",
+        reply_markup=back_keyboard
+    )
+
+@router.callback_query(F.data == "back_to_knowledge")
+async def back_to_knowledge_menu(callback: CallbackQuery):
+    await callback.answer()
+    await knowledge_base(callback.message)
 
 # Обработка неизвестных сообщений
 @router.message()
