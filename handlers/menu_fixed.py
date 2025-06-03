@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from config import STATIC_DIR
-from Клавиатуры.menu_kb import (
+from keyboards.menu_kb import (
     get_main_menu_keyboard, get_start_keyboard, get_event_rules_keyboard, 
     get_rules_detail_keyboard, get_back_button
 )
