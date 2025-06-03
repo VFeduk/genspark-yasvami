@@ -11,7 +11,23 @@ from aiogram.types import BotCommand
 
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT
 from database.db import init_db, get_async_session
-from Обработчики import common, profile, events, ratings, menu_fixed as menu  # Добавили импорт menu
+
+# ИСПРАВЛЕННЫЕ ИМПОРТЫ - используем русские названия папок как в структуре проекта
+try:
+    from Обработчики import common, profile, events, ratings
+    from Обработчики import menu_fixed as menu
+    print("Успешно импортированы обработчики с русскими названиями")
+except ImportError as e:
+    print(f"Ошибка импорта с русскими названиями: {e}")
+    # Fallback к английским названиям
+    try:
+        from handlers import common, profile, events, ratings
+        from handlers import menu_fixed as menu
+        print("Успешно импортированы обработчики с английскими названиями")
+    except ImportError as e2:
+        print(f"Критическая ошибка импорта: {e2}")
+        raise e2
+
 from middlewares.auth import AuthMiddleware
 
 # Добавьте эти строки для отладки
@@ -57,11 +73,13 @@ async def main():
         return
     
     # Регистрация обработчиков
+    print("Регистрация обработчиков...")
     dp.include_router(menu.router)  # Добавили меню первым для приоритетной обработки
     dp.include_router(common.router)
     dp.include_router(profile.router)
     dp.include_router(events.router)
     dp.include_router(ratings.router)
+    print("Обработчики зарегистрированы успешно")
     
     # Регистрация middleware
     dp.message.middleware(AuthMiddleware())
