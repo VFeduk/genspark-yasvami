@@ -1,5 +1,6 @@
 import logging
 import os
+from handlers.registration import start_registration, check_user_exists
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.filters import CommandStart, Command
@@ -141,20 +142,22 @@ async def cmd_knowledge(message: Message):
 
 # Обработчики для кнопок главного меню с ReplyKeyboard
 @router.message(F.text == "Мой профиль")
-async def show_profile(message: Message):
+async def show_profile(message: Message, state: FSMContext):
     """Обработчик кнопки 'Мой профиль'"""
     logger.info(f"Пользователь {message.from_user.id} нажал 'Мой профиль'")
     
-    profile_text = (
-        "👤 <b>Ваш профиль</b>\n\n"
-        "Здесь будет отображаться информация о вас:\n"
-        "• Ваши личные данные\n"
-        "• Текущий рейтинг\n"
-        "• История мероприятий\n"
-        "• VIP-статус\n\n"
-        "🔧 <i>Функция профиля находится в разработке</i>"
-    )
-    
+    # Проверяем, зарегистрирован ли пользователь
+    if not await check_user_exists(message.from_user.id):
+        await start_registration(message, state)
+    else:
+        # Показываем существующий профиль (пока заглушка)
+        await message.answer(
+            "👤 <b>Ваш профиль</b>\n\n"
+            "Здесь будет отображаться ваша информация.\n"
+            "Функция просмотра и редактирования профиля будет добавлена в следующем обновлении.",
+            parse_mode="HTML"
+        )
+   
     await message.answer(profile_text, parse_mode="HTML")
 
 @router.message(F.text == "Создать мероприятие")
