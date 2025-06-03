@@ -58,12 +58,12 @@ async def main():
     
     # Регистрация обработчиков
     print("Регистрация обработчиков...")
-dp.include_router(menu.router)
-dp.include_router(registration.router)  # Добавляем роутер регистрации
-dp.include_router(common.router)
-dp.include_router(profile.router)
-dp.include_router(events.router)
-dp.include_router(ratings.router)
+    dp.include_router(menu.router)
+    dp.include_router(registration.router)
+    dp.include_router(common.router)
+    dp.include_router(profile.router)
+    dp.include_router(events.router)
+    dp.include_router(ratings.router)
     print("Обработчики зарегистрированы успешно")
     
     # Регистрация middleware
