@@ -11,7 +11,7 @@ from aiogram.types import BotCommand
 
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT
 from database.db import init_db, get_async_session
-from handlers import common, profile, events, ratings, menu_fixed as menu
+from handlers import common, profile, events, ratings, menu_fixed as menu, registration
 from middlewares.auth import AuthMiddleware
 
 # Добавьте эти строки для отладки
@@ -58,11 +58,12 @@ async def main():
     
     # Регистрация обработчиков
     print("Регистрация обработчиков...")
-    dp.include_router(menu.router)  # Добавили меню первым для приоритетной обработки
-    dp.include_router(common.router)
-    dp.include_router(profile.router)
-    dp.include_router(events.router)
-    dp.include_router(ratings.router)
+dp.include_router(menu.router)
+dp.include_router(registration.router)  # Добавляем роутер регистрации
+dp.include_router(common.router)
+dp.include_router(profile.router)
+dp.include_router(events.router)
+dp.include_router(ratings.router)
     print("Обработчики зарегистрированы успешно")
     
     # Регистрация middleware
