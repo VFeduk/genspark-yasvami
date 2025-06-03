@@ -11,7 +11,7 @@ from aiogram.types import BotCommand
 
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT
 from database.db import init_db, get_async_session
-from handlers import common, profile, events, ratings, menu  # Добавили импорт menu
+from Обработчики import common, profile, events, ratings, menu_fixed as menu  # Добавили импорт menu
 from middlewares.auth import AuthMiddleware
 
 # Добавьте эти строки для отладки
