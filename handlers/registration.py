@@ -5,11 +5,10 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from keyboards.menu_kb import get_main_menu_keyboard, get_gender_selection_keyboard, get_city_selection_keyboard
+from keyboards.menu_kb import get_main_menu_keyboard
 from database.db import get_async_session
 from database.models import User
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -23,22 +22,20 @@ class RegistrationStates(StatesGroup):
     waiting_for_gender = State()
     waiting_for_about = State()
 
-# Список популярных городов
-POPULAR_CITIES = [
-    "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург",
-    "Казань", "Нижний Новгород", "Челябинск", "Самара",
-    "Омск", "Ростов-на-Дону", "Уфа", "Красноярск",
-    "Воронеж", "Пермь", "Волгоград", "Краснодар",
-    "Саратов", "Тюмень", "Тольятти", "Ижевск"
-]
-
 async def check_user_exists(user_id: int) -> bool:
     """Проверяет, существует ли пользователь в базе данных"""
-    async with get_async_session() as session:
-        result = await session.execute(
-            select(User).where(User.telegram_id == user_id)
-        )
-        return result.scalar_one_or_none() is not None
+    try:
+        # Исправленная работа с сессией
+        async_session = get_async_session()
+        async with async_session() as session:
+            result = await session.execute(
+                select(User).where(User.telegram_id == user_id)
+            )
+            user = result.scalar_one_or_none()
+            return user is not None
+    except Exception as e:
+        logger.error(f"Ошибка при проверке пользователя {user_id}: {e}")
+        return False
 
 async def start_registration(message: Message, state: FSMContext):
     """Начинает процесс регистрации пользователя"""
@@ -58,53 +55,18 @@ async def start_registration(message: Message, state: FSMContext):
         "👋 <b>Давайте знакомиться!</b>\n\n"
         "Для работы с ботом необходимо заполнить ваш профиль. "
         "Это займет всего несколько минут.\n\n"
-        "🏙️ <b>Шаг 1 из 5: Выберите ваш город</b>\n\n"
-        "Выберите город из списка популярных или нажмите \"Другой город\":"
+        "🏙️ <b>Шаг 1 из 5: Укажите ваш город</b>\n\n"
+        "Напишите название города, в котором вы находитесь:"
     )
     
-    await message.answer(
-        welcome_text,
-        parse_mode="HTML",
-        reply_markup=get_city_selection_keyboard(POPULAR_CITIES[:8])  # Показываем первые 8 городов
-    )
-    
+    await message.answer(welcome_text, parse_mode="HTML")
     await state.set_state(RegistrationStates.waiting_for_city)
     logger.info(f"Пользователь {user_id} начал регистрацию")
 
-# Обработчик выбора города
-@router.callback_query(F.data.startswith("city_"), RegistrationStates.waiting_for_city)
-async def process_city_selection(callback: CallbackQuery, state: FSMContext):
-    """Обработчик выбора города из списка"""
-    city = callback.data.split("_", 1)[1]
-    
-    if city == "other":
-        await callback.answer()
-        await callback.message.edit_text(
-            "🏙️ <b>Введите название вашего города:</b>\n\n"
-            "Напишите название города, в котором вы находитесь.",
-            parse_mode="HTML"
-        )
-        await state.set_state(RegistrationStates.entering_custom_city)
-        return
-    
-    # Сохраняем выбранный город
-    await state.update_data(city=city)
-    await callback.answer()
-    
-    await callback.message.edit_text(
-        f"✅ Город: <b>{city}</b>\n\n"
-        f"👤 <b>Шаг 2 из 5: Как вас зовут?</b>\n\n"
-        f"Введите ваше имя (или как вы хотите, чтобы вас называли в боте):",
-        parse_mode="HTML"
-    )
-    
-    await state.set_state(RegistrationStates.waiting_for_name)
-    logger.info(f"Пользователь {callback.from_user.id} выбрал город: {city}")
-
-# Обработчик ввода города вручную
-@router.message(RegistrationStates.entering_custom_city)
-async def process_custom_city(message: Message, state: FSMContext):
-    """Обработчик ввода города вручную"""
+# Обработчик ввода города
+@router.message(RegistrationStates.waiting_for_city)
+async def process_city(message: Message, state: FSMContext):
+    """Обработчик ввода города"""
     city = message.text.strip().title()
     
     if len(city) < 2 or len(city) > 50:
@@ -114,7 +76,7 @@ async def process_custom_city(message: Message, state: FSMContext):
         )
         return
     
-    # Сохраняем введенный город
+    # Сохраняем город
     await state.update_data(city=city)
     
     await message.answer(
@@ -127,7 +89,6 @@ async def process_custom_city(message: Message, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_name)
     logger.info(f"Пользователь {message.from_user.id} ввел город: {city}")
 
-# Обработчик ввода имени
 @router.message(RegistrationStates.waiting_for_name)
 async def process_name(message: Message, state: FSMContext):
     """Обработчик ввода имени"""
@@ -140,7 +101,6 @@ async def process_name(message: Message, state: FSMContext):
         )
         return
     
-    # Сохраняем имя
     await state.update_data(full_name=name)
     
     await message.answer(
@@ -151,9 +111,7 @@ async def process_name(message: Message, state: FSMContext):
     )
     
     await state.set_state(RegistrationStates.waiting_for_age)
-    logger.info(f"Пользователь {message.from_user.id} ввел имя: {name}")
 
-# Обработчик ввода возраста
 @router.message(RegistrationStates.waiting_for_age)
 async def process_age(message: Message, state: FSMContext):
     """Обработчик ввода возраста"""
@@ -167,19 +125,16 @@ async def process_age(message: Message, state: FSMContext):
             )
             return
         
-        # Сохраняем возраст
         await state.update_data(age=age)
         
         await message.answer(
             f"✅ Возраст: <b>{age} лет</b>\n\n"
             f"👫 <b>Шаг 4 из 5: Укажите ваш пол</b>\n\n"
-            f"Выберите ваш пол:",
-            parse_mode="HTML",
-            reply_markup=get_gender_selection_keyboard()
+            f"Напишите 'М' для мужского пола или 'Ж' для женского:",
+            parse_mode="HTML"
         )
         
         await state.set_state(RegistrationStates.waiting_for_gender)
-        logger.info(f"Пользователь {message.from_user.id} ввел возраст: {age}")
         
     except ValueError:
         await message.answer(
@@ -187,30 +142,35 @@ async def process_age(message: Message, state: FSMContext):
             "Например: 25"
         )
 
-# Обработчик выбора пола
-@router.callback_query(F.data.startswith("gender_"), RegistrationStates.waiting_for_gender)
-async def process_gender(callback: CallbackQuery, state: FSMContext):
+@router.message(RegistrationStates.waiting_for_gender)
+async def process_gender(message: Message, state: FSMContext):
     """Обработчик выбора пола"""
-    gender = callback.data.split("_")[1]
-    gender_text = "Мужской" if gender == "male" else "Женский"
+    gender_input = message.text.strip().upper()
     
-    # Сохраняем пол
+    if gender_input in ['М', 'МУЖСКОЙ', 'M', 'MALE']:
+        gender = 'male'
+        gender_text = 'Мужской'
+    elif gender_input in ['Ж', 'ЖЕНСКИЙ', 'F', 'FEMALE']:
+        gender = 'female'
+        gender_text = 'Женский'
+    else:
+        await message.answer(
+            "❌ Пожалуйста, напишите 'М' для мужского пола или 'Ж' для женского пола:"
+        )
+        return
+    
     await state.update_data(gender=gender)
-    await callback.answer()
     
-    await callback.message.edit_text(
+    await message.answer(
         f"✅ Пол: <b>{gender_text}</b>\n\n"
         f"📝 <b>Шаг 5 из 5: Расскажите о себе</b>\n\n"
         f"Напишите несколько слов о себе, ваших интересах или хобби "
-        f"(до 500 символов).\n\n"
-        f"Это поможет другим пользователям лучше вас узнать!",
+        f"(от 10 до 500 символов):",
         parse_mode="HTML"
     )
     
     await state.set_state(RegistrationStates.waiting_for_about)
-    logger.info(f"Пользователь {callback.from_user.id} выбрал пол: {gender_text}")
 
-# Обработчик ввода информации о себе
 @router.message(RegistrationStates.waiting_for_about)
 async def process_about(message: Message, state: FSMContext):
     """Обработчик ввода информации о себе"""
@@ -219,7 +179,7 @@ async def process_about(message: Message, state: FSMContext):
     if len(about) < 10 or len(about) > 500:
         await message.answer(
             "❌ Описание должно содержать от 10 до 500 символов.\n\n"
-            "Расскажите немного о себе, ваших интересах или хобби:"
+            "Расскажите немного о себе:"
         )
         return
     
@@ -233,17 +193,15 @@ async def process_about(message: Message, state: FSMContext):
     success = await save_user_to_db(message.from_user.id, message.from_user.username, user_data)
     
     if success:
-        # Показываем итоговую информацию
         summary_text = (
             f"🎉 <b>Регистрация завершена!</b>\n\n"
             f"📋 <b>Ваш профиль:</b>\n"
             f"🏙️ Город: {user_data['city']}\n"
             f"👤 Имя: {user_data['full_name']}\n"
             f"🎂 Возраст: {user_data['age']} лет\n"
-            f"👫 Пол: {'Мужской' if user_data['gender'] == 'male' else 'Женский'}\n"
-            f"📝 О себе: {about}\n\n"
+            f"👫 Пол: {'Мужской' if user_data['gender'] == 'male' else 'Женский'}\n\n"
             f"⭐ Ваш начальный рейтинг: 100 баллов\n\n"
-            f"Теперь вы можете создавать мероприятия и участвовать в событиях других пользователей!"
+            f"Теперь вы можете создавать мероприятия и участвовать в событиях!"
         )
         
         await message.answer(
@@ -257,7 +215,7 @@ async def process_about(message: Message, state: FSMContext):
     else:
         await message.answer(
             "❌ Произошла ошибка при сохранении данных.\n\n"
-            "Пожалуйста, попробуйте позже или обратитесь в поддержку.",
+            "Пожалуйста, попробуйте позже.",
             reply_markup=get_main_menu_keyboard()
         )
         await state.clear()
@@ -265,7 +223,9 @@ async def process_about(message: Message, state: FSMContext):
 async def save_user_to_db(telegram_id: int, username: str, user_data: dict) -> bool:
     """Сохраняет пользователя в базу данных"""
     try:
-        async with get_async_session() as session:
+        # Исправленная работа с сессией
+        async_session = get_async_session()
+        async with async_session() as session:
             new_user = User(
                 telegram_id=telegram_id,
                 username=username,
@@ -274,7 +234,7 @@ async def save_user_to_db(telegram_id: int, username: str, user_data: dict) -> b
                 age=user_data['age'],
                 gender=user_data['gender'],
                 about_me=user_data['about_me'],
-                rating=100  # Начальный рейтинг
+                rating=100
             )
             
             session.add(new_user)
