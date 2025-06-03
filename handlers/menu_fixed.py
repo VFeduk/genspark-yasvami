@@ -10,7 +10,7 @@ from keyboards.menu_kb import (
     get_main_menu_keyboard, get_start_keyboard, get_event_rules_keyboard, 
     get_rules_detail_keyboard, get_back_button
 )
-from utils.states import MainState, MenuStates
+from utils.states import MainState
 
 router = Router()
 logger = logging.getLogger(__name__)
