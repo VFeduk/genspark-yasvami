@@ -321,42 +321,53 @@ async def accept_rule(callback: CallbackQuery):
 async def accept_all_rules(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Вы приняли все правила")
     
-    # Проверяем, заполнен ли профиль пользователя
-    if not await check_user_exists(callback.from_user.id):
-        success_text = (
-            "✅ <b>Отлично!</b>\n\n"
-            "Вы согласились со всеми правилами.\n\n"
-            "Для создания мероприятия необходимо заполнить ваш профиль.\n\n"
-            "Нажмите кнопку ниже для быстрого перехода к заполнению профиля:"
-        )
+    try:
+        # Проверяем, заполнен ли профиль пользователя
+        user_exists = await check_user_exists(callback.from_user.id)
         
-        profile_keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="👤 Заполнить профиль", callback_data="start_profile_registration")],
-                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
-            ]
-        )
+        if not user_exists:
+            success_text = (
+                "✅ <b>Отлично!</b>\n\n"
+                "Вы согласились со всеми правилами.\n\n"
+                "Для создания мероприятия необходимо заполнить ваш профиль.\n\n"
+                "Нажмите кнопку ниже для быстрого перехода к заполнению профиля:"
+            )
+            
+            profile_keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="👤 Заполнить профиль", callback_data="start_profile_registration")],
+                    [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_main")]
+                ]
+            )
+            
+            await callback.message.answer(
+                success_text,
+                parse_mode="HTML",
+                reply_markup=profile_keyboard
+            )
+        else:
+            success_text = (
+                "✅ <b>Отлично!</b>\n\n"
+                "Вы согласились со всеми правилами и ваш профиль заполнен.\n\n"
+                "🎉 Теперь вы можете создать мероприятие!\n\n"
+                "🔧 <i>Функция создания мероприятий будет добавлена в следующем обновлении.</i>"
+            )
+            
+            await callback.message.answer(
+                success_text,
+                parse_mode="HTML",
+                reply_markup=get_main_menu_keyboard()
+            )
         
+        await state.clear()
+        
+    except Exception as e:
+        logger.error(f"Ошибка в accept_all_rules: {e}")
         await callback.message.answer(
-            success_text,
-            parse_mode="HTML",
-            reply_markup=profile_keyboard
-        )
-    else:
-        success_text = (
-            "✅ <b>Отлично!</b>\n\n"
-            "Вы согласились со всеми правилами и ваш профиль заполнен.\n\n"
-            "🎉 Теперь вы можете создать мероприятие!\n\n"
-            "🔧 <i>Функция создания мероприятий будет добавлена в следующем обновлении.</i>"
-        )
-        
-        await callback.message.answer(
-            success_text,
-            parse_mode="HTML",
+            "❌ Произошла ошибка. Попробуйте позже.",
             reply_markup=get_main_menu_keyboard()
         )
-    
-    await state.clear()
+        await state.clear()
 
 @router.callback_query(F.data == "start_profile_registration")
 async def start_profile_from_rules(callback: CallbackQuery, state: FSMContext):
