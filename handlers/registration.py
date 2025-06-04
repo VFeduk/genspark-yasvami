@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 # Состояния для регистрации
 class RegistrationStates(StatesGroup):
     waiting_for_city = State()
-    entering_custom_city = State()
     waiting_for_name = State()
     waiting_for_age = State()
     waiting_for_gender = State()
@@ -25,9 +24,9 @@ class RegistrationStates(StatesGroup):
 async def check_user_exists(user_id: int) -> bool:
     """Проверяет, существует ли пользователь в базе данных"""
     try:
-        # Исправленная работа с сессией
-        async_session = get_async_session()
-        async with async_session() as session:
+        # Правильная работа с сессией
+        async_session_factory = get_async_session()
+        async with async_session_factory() as session:
             result = await session.execute(
                 select(User).where(User.telegram_id == user_id)
             )
@@ -111,6 +110,7 @@ async def process_name(message: Message, state: FSMContext):
     )
     
     await state.set_state(RegistrationStates.waiting_for_age)
+    logger.info(f"Пользователь {message.from_user.id} ввел имя: {name}")
 
 @router.message(RegistrationStates.waiting_for_age)
 async def process_age(message: Message, state: FSMContext):
@@ -135,6 +135,7 @@ async def process_age(message: Message, state: FSMContext):
         )
         
         await state.set_state(RegistrationStates.waiting_for_gender)
+        logger.info(f"Пользователь {message.from_user.id} ввел возраст: {age}")
         
     except ValueError:
         await message.answer(
@@ -170,6 +171,7 @@ async def process_gender(message: Message, state: FSMContext):
     )
     
     await state.set_state(RegistrationStates.waiting_for_about)
+    logger.info(f"Пользователь {message.from_user.id} выбрал пол: {gender_text}")
 
 @router.message(RegistrationStates.waiting_for_about)
 async def process_about(message: Message, state: FSMContext):
@@ -223,9 +225,9 @@ async def process_about(message: Message, state: FSMContext):
 async def save_user_to_db(telegram_id: int, username: str, user_data: dict) -> bool:
     """Сохраняет пользователя в базу данных"""
     try:
-        # Исправленная работа с сессией
-        async_session = get_async_session()
-        async with async_session() as session:
+        # Правильная работа с сессией
+        async_session_factory = get_async_session()
+        async with async_session_factory() as session:
             new_user = User(
                 telegram_id=telegram_id,
                 username=username,
