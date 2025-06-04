@@ -12,7 +12,6 @@ from aiogram.types import BotCommand
 from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT
 from database.db import init_db, get_async_session
 from handlers import common, profile, events, ratings, menu_fixed as menu, registration
-from middlewares.auth import AuthMiddleware
 
 # Добавьте эти строки для отладки
 print("DEBUG: BOT_TOKEN from config:", BOT_TOKEN)
@@ -20,7 +19,7 @@ print("DEBUG: BOT_TOKEN from environment:", os.environ.get("BOT_TOKEN"))
 
 # Настройка логирования
 logging.basicConfig(
-    level=logging.DEBUG,  # Изменили на DEBUG для более подробных логов
+    level=logging.INFO,  # Изменили обратно на INFO для production
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -66,9 +65,9 @@ async def main():
     dp.include_router(ratings.router)
     print("Обработчики зарегистрированы успешно")
     
-    # Регистрация middleware
-    dp.message.middleware(AuthMiddleware())
-    dp.callback_query.middleware(AuthMiddleware())
+    # УБИРАЕМ ПРОБЛЕМНЫЙ MIDDLEWARE ПОКА ЧТО
+    # dp.message.middleware(AuthMiddleware())
+    # dp.callback_query.middleware(AuthMiddleware())
     
     # Установка команд бота
     await set_commands(bot)
