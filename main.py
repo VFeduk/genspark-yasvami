@@ -56,15 +56,15 @@ async def main():
         print(f"ОШИБКА при инициализации базы данных: {e}")
         return
     
-   # Регистрация обработчиков
-print("Регистрация обработчиков...")
-dp.include_router(registration.router)  # ПЕРВЫМ!
-dp.include_router(menu.router)
-dp.include_router(common.router)
-dp.include_router(profile.router)
-dp.include_router(events.router)
-dp.include_router(ratings.router)
-print("Обработчики зарегистрированы успешно")
+    # Регистрация обработчиков
+    print("Регистрация обработчиков...")
+    dp.include_router(registration.router)  # ПЕРВЫМ!
+    dp.include_router(menu.router)
+    dp.include_router(common.router)
+    dp.include_router(profile.router)
+    dp.include_router(events.router)
+    dp.include_router(ratings.router)
+    print("Обработчики зарегистрированы успешно")
     
     # Регистрация middleware
     dp.message.middleware(AuthMiddleware())
