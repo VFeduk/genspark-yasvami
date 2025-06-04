@@ -1,44 +1,37 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+import os
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
+from sqlalchemy import MetaData
 
-from config import DATABASE_URL
+# Получаем URL базы данных из переменных окружения
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 
-# Создание асинхронного движка SQLAlchemy
-# Убедимся, что URL начинается с postgresql+asyncpg://
-db_url = DATABASE_URL
-if not db_url.startswith("postgresql+asyncpg://"):
-    # Заменяем postgresql:// на postgresql+asyncpg://
-    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
-
-engine = create_async_engine(db_url, poolclass=NullPool, echo=False)
-
-# Создание фабрики сессий
-async_session_factory = sessionmaker(
-    engine, expire_on_commit=False, class_=AsyncSession
+# Создаем асинхронный движок
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,  # Для отладки SQL запросов
+    future=True
 )
+
+# Создаем фабрику сессий
+async_session = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
+# Создаем базовый класс для моделей
+Base = declarative_base()
+metadata = MetaData()
 
 async def init_db():
     """Инициализация базы данных"""
-    print(f"Инициализация базы данных с URL: {db_url}")
-    try:
-        async with engine.begin() as conn:
-            # Создаем таблицы, если они еще не существуют
-            from database.models import Base
-            await conn.run_sync(Base.metadata.create_all)
-        print("База данных успешно инициализирована")
-    except Exception as e:
-        print(f"Ошибка при инициализации базы данных: {e}")
-        raise
+    async with engine.begin() as conn:
+        # Создаем все таблицы
+        await conn.run_sync(Base.metadata.create_all)
 
-async def get_async_session():
-    """Асинхронный контекстный менеджер для сессии БД"""
-    async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception as e:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+def get_async_session():
+    """Возвращает фабрику асинхронных сессий"""
+    return async_session
