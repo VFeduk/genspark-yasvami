@@ -591,7 +591,7 @@ async def process_other_messages(message: Message):
             "Используйте меню ниже для навигации или отправьте /help для получения справки.",
             reply_markup=get_main_menu_keyboard()
         )
-   else:
+    else:
         logger.info(f"Получено неизвестное сообщение от пользователя {message.from_user.id}: {message.text}")
         await message.answer(
             "Я не понял вашу команду. Воспользуйтесь меню ниже или отправьте /help для получения справки.",
