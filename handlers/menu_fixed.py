@@ -6,6 +6,7 @@ from aiogram.types import Message, CallbackQuery, FSInputFile, InlineKeyboardMar
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+
 from keyboards.main_menu import (
     get_main_menu_keyboard, get_start_keyboard
 )
@@ -34,7 +35,6 @@ def get_back_button():
         [InlineKeyboardButton(text="Назад", callback_data="back_to_rules")]
     ])
 
-)
 from utils.states import MainState
 
 router = Router()
@@ -592,7 +592,7 @@ async def process_other_messages(message: Message):
             reply_markup=get_main_menu_keyboard()
         )
     else:
-        logger.info(f"Получено неизвестное сообщение от пользователя {message.from_user.id}: {message.text}")
+         logger.info(f"Получено неизвестное сообщение от пользователя {message.from_user.id}: {message.text}")
         await message.answer(
             "Я не понял вашу команду. Воспользуйтесь меню ниже или отправьте /help для получения справки.",
             reply_markup=get_main_menu_keyboard()
