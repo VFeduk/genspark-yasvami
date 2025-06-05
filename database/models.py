@@ -2,11 +2,11 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import List, Optional
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Table, Enum as SQLEnum, Text
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-Base = declarative_base()
+# ИСПРАВЛЕНО: Импортируем Base из db.py вместо создания нового
+from .db import Base
 
 # Промежуточная таблица для отношения многие-ко-многим между пользователями и мероприятиями
 event_participants = Table(
@@ -68,6 +68,7 @@ class User(Base):
     )
     given_ratings = relationship("Rating", foreign_keys="[Rating.rater_id]", back_populates="rater")
     received_ratings = relationship("Rating", foreign_keys="[Rating.rated_id]", back_populates="rated")
+    transactions = relationship("Transaction", back_populates="user")
 
     @property
     def is_vip(self):
@@ -131,16 +132,23 @@ class Event(Base):
             return False
         return len(self.participants) >= self.max_participants
     
-    @property
     def can_register(self, user):
-        """Проверка, может ли пользователь зарегистрироваться на мероприятие"""
+        """ИСПРАВЛЕНО: Проверка возможности регистрации пользователя"""
         if self.is_full:
             return False
         
-        # Проверка по возрасту
-        if self.min_age and user.age < self.min_age:
+        # Проверка, не является ли пользователь создателем
+        if self.creator_id == user.id:
             return False
-        if self.max_age and user.age > self.max_age:
+            
+        # Проверка, не зарегистрирован ли уже
+        if user in self.participants:
+            return False
+        
+        # Проверка по возрасту
+        if self.min_age and user.age and user.age < self.min_age:
+            return False
+        if self.max_age and user.age and user.age > self.max_age:
             return False
         
         # Проверка по полу
@@ -176,5 +184,5 @@ class Transaction(Base):
     description = Column(String, nullable=False)
     created_at = Column(DateTime, default=func.now())
     
-    # Отношения
-    user = relationship("User")
+    # ИСПРАВЛЕНО: Добавлен back_populates
+    user = relationship("User", back_populates="transactions")
