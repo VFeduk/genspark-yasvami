@@ -6,10 +6,34 @@ from aiogram.types import Message, CallbackQuery, FSInputFile, InlineKeyboardMar
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from keyboards.main_menu import (
+    get_main_menu_keyboard, get_start_keyboard
+)
 
-from keyboards.menu_kb import (
-    get_main_menu_keyboard, get_start_keyboard, get_event_rules_keyboard, 
-    get_rules_detail_keyboard, get_back_button
+# Добавим недостающие функции прямо в файл
+def get_event_rules_keyboard():
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Ознакомиться", callback_data="show_rules")],
+        [InlineKeyboardButton(text="Согласен со всем", callback_data="accept_all_rules")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_main")]
+    ])
+
+def get_rules_detail_keyboard():
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Правила создания мероприятий", callback_data="event_creation_rules")],
+        [InlineKeyboardButton(text="Правила регистрации на мероприятие", callback_data="event_registration_rules")],
+        [InlineKeyboardButton(text="Всё прочитал, со всем согласен", callback_data="accept_all_rules")]
+    ])
+
+def get_back_button():
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Согласен", callback_data="accept_rules")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_to_rules")]
+    ])
+
 )
 from utils.states import MainState
 
