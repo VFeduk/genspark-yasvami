@@ -69,22 +69,90 @@ async def init_db():
         autocommit=False, # Обычно False, чтобы явно управлять транзакциями
     )
 
-# --- Функция для получения асинхронной сессии (для зависимостей aiogram) ---
-async def get_async_session() -> AsyncSession:
+# --- ИСПРАВЛЕННАЯ функция для получения асинхронной сессии ---
+def get_async_session():
     """
-    Асинхронный генератор для получения сессии базы данных.
-    Используется как зависимость (dependency) для обработчиков Aiogram.
+    Функция для получения новой сессии базы данных.
+    Возвращает объект AsyncSession, который нужно закрывать после использования.
+    
+    Использование:
+    session = get_async_session()
+    try:
+        # работа с сессией
+        result = await session.execute(query)
+        await session.commit()
+    finally:
+        await session.close()
     """
     if async_session_maker is None:
         raise RuntimeError("Database session maker is not initialized. Call init_db() first.")
+    
+    return async_session_maker()
 
-    session = async_session_maker()
+# --- Контекстный менеджер для сессии (альтернативный способ) ---
+class AsyncSessionContext:
+    """
+    Асинхронный контекстный менеджер для сессии базы данных.
+    
+    Использование:
+    async with AsyncSessionContext() as session:
+        result = await session.execute(query)
+        await session.commit()
+    """
+    
+    def __init__(self):
+        if async_session_maker is None:
+            raise RuntimeError("Database session maker is not initialized. Call init_db() first.")
+        self.session = None
+    
+    async def __aenter__(self):
+        self.session = async_session_maker()
+        return self.session
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            if exc_type:
+                await self.session.rollback()
+            await self.session.close()
+
+# --- Вспомогательная функция для безопасной работы с сессией ---
+async def safe_session_execute(operation):
+    """
+    Безопасное выполнение операции с базой данных.
+    
+    Args:
+        operation: async функция, которая принимает session и выполняет операции с БД
+    
+    Returns:
+        Результат операции или None в случае ошибки
+    
+    Example:
+        async def my_operation(session):
+            result = await session.execute(select(User).where(User.id == 1))
+            return result.scalar_one_or_none()
+        
+        user = await safe_session_execute(my_operation)
+    """
+    session = None
     try:
-        yield session # Возвращаем сессию
+        session = get_async_session()
+        result = await operation(session)
+        await session.commit()
+        return result
+    except Exception as e:
+        if session:
+            await session.rollback()
+        print(f"Ошибка при выполнении операции с БД: {e}")
+        raise e
     finally:
-        await session.close() # Закрываем сессию после использования
+        if session:
+            await session.close()
 
 # --- ОБЯЗАТЕЛЬНО: Импортируем ваш файл models.py, где определены все модели ---
 # Это позволяет SQLAlchemy обнаружить все модели, наследующие от Base,
 # и создать для них таблицы при вызове Base.metadata.create_all().
-from database import models # Импортируем models.py, который находится в той же папке database
+try:
+    from database import models # Импортируем models.py, который находится в той же папке database
+    print("Модели базы данных успешно импортированы")
+except ImportError as e:
+    print(f"ПРЕДУПРЕЖДЕНИЕ: Не удалось импортировать модели: {e}")
