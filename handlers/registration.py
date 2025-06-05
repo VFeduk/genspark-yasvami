@@ -4,16 +4,13 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.enums import ParseMode # Добавлено для явного указания parse_mode
+from aiogram.enums import ParseMode
 
-# Импортируем клавиатуры из правильного файла main_menu.py
 from keyboards.main_menu import get_main_menu_keyboard
-
-# Импортируем get_async_session и модели User, Gender, UserType из database/db и database/models
 from database.db import get_async_session
-from database.models import User, Gender, UserType # Убедитесь, что Gender и UserType импортированы
-
-from sqlalchemy import select, exc # Добавлено exc для обработки исключений SQLAlchemy
+from database.models import User, Gender, UserType
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError # Явный импорт IntegrityError
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -32,8 +29,7 @@ async def check_user_exists(user_id: int) -> bool:
     Корректно использует асинхронную сессию.
     """
     try:
-        # Используем get_async_session() как асинхронный контекстный менеджер
-        async with get_async_session() as session:
+        async with get_async_session() as session: # Сессия определяется здесь
             result = await session.execute(
                 select(User).where(User.telegram_id == user_id)
             )
@@ -41,6 +37,7 @@ async def check_user_exists(user_id: int) -> bool:
             return user is not None
     except Exception as e:
         logger.error(f"Ошибка при проверке пользователя {user_id}: {e}")
+        # Здесь нет необходимости в session.rollback(), так как мы только читаем.
         return False
 
 async def start_registration(message: Message, state: FSMContext):
@@ -50,18 +47,15 @@ async def start_registration(message: Message, state: FSMContext):
     """
     user_id = message.from_user.id
     
-    # Проверяем, не зарегистрирован ли уже пользователь
     if await check_user_exists(user_id):
         await message.answer(
             "👤 Вы уже зарегистрированы!\n\n"
             "Используйте меню для навигации по боту.",
             reply_markup=get_main_menu_keyboard()
         )
-        # Очищаем состояние, если пользователь уже зарегистрирован
         await state.clear() 
         return
     
-    # Начинаем регистрацию
     welcome_text = (
         "👋 <b>Давайте знакомиться!</b>\n\n"
         "Для работы с ботом необходимо заполнить ваш профиль. "
@@ -87,7 +81,6 @@ async def process_city(message: Message, state: FSMContext):
         )
         return
     
-    # Сохраняем город
     await state.update_data(city=city)
     
     await message.answer(
@@ -112,7 +105,7 @@ async def process_name(message: Message, state: FSMContext):
         )
         return
     
-    await state.update_data(full_name=name) # Имя для display_name и first_name
+    await state.update_data(full_name=name)
     
     await message.answer(
         f"✅ Имя: <b>{name}</b>\n\n"
@@ -164,10 +157,10 @@ async def process_gender(message: Message, state: FSMContext):
     gender_text = None
 
     if gender_input in ['М', 'МУЖСКОЙ', 'M', 'MALE']:
-        gender = Gender.MALE.value # Используем .value для получения строкового значения Enum
+        gender = Gender.MALE.value
         gender_text = 'Мужской'
     elif gender_input in ['Ж', 'ЖЕНСКИЙ', 'F', 'FEMALE']:
-        gender = Gender.FEMALE.value # Используем .value для получения строкового значения Enum
+        gender = Gender.FEMALE.value
         gender_text = 'Женский'
     else:
         await message.answer(
@@ -175,7 +168,7 @@ async def process_gender(message: Message, state: FSMContext):
         )
         return
     
-    await state.update_data(gender=gender) # Сохраняем строковое значение пола
+    await state.update_data(gender=gender)
     
     await message.answer(
         f"✅ Пол: <b>{gender_text}</b>\n\n"
@@ -200,13 +193,10 @@ async def process_about(message: Message, state: FSMContext):
         )
         return
     
-    # Сохраняем информацию о себе
     await state.update_data(about_me=about)
     
-    # Получаем все данные пользователя
     user_data = await state.get_data()
     
-    # Сохраняем пользователя в базу данных
     success = await save_user_to_db(
         telegram_id=message.from_user.id,
         username=message.from_user.username,
@@ -237,7 +227,7 @@ async def process_about(message: Message, state: FSMContext):
         await message.answer(
             "❌ Произошла ошибка при сохранении данных.\n\n"
             "Пожалуйста, попробуйте позже.",
-            parse_mode=ParseMode.HTML, # Добавил, чтобы сообщение корректно отображалось
+            parse_mode=ParseMode.HTML,
             reply_markup=get_main_menu_keyboard()
         )
         await state.clear()
@@ -247,39 +237,67 @@ async def save_user_to_db(telegram_id: int, username: str | None, user_data: dic
     Сохраняет нового пользователя в базу данных.
     Корректно использует асинхронную сессию и маппинг полей модели.
     """
+    session = None # Инициализируем session здесь, чтобы она была доступна в except блоках
     try:
-        # Используем get_async_session() как асинхронный контекстный менеджер
         async with get_async_session() as session:
             new_user = User(
                 telegram_id=telegram_id,
-                username=username, # Может быть None
-                first_name=user_data['full_name'], # Имя
-                display_name=user_data['full_name'], # Имя для отображения
+                username=username,
+                first_name=user_data['full_name'],
+                display_name=user_data['full_name'],
                 city=user_data['city'],
                 age=user_data['age'],
-                gender=Gender(user_data['gender']), # Преобразуем строку в Enum
-                about=user_data['about_me'], # Поле 'about' в модели
-                rating=100, # Начальный рейтинг
-                tokens=0, # Начальное количество токенов
-                user_type=UserType.REGULAR # Тип пользователя
+                gender=Gender(user_data['gender']),
+                about=user_data['about_me'],
+                rating=100,
+                tokens=0,
+                user_type=UserType.REGULAR
             )
             
             session.add(new_user)
             await session.commit()
             return True
             
-    except exc.IntegrityError as e: # Обработка ошибок уникальности (например, если telegram_id уже есть)
+    except IntegrityError as e:
         logger.error(f"Ошибка уникальности при сохранении пользователя {telegram_id}: {e}")
-        await session.rollback() # Откатываем транзакцию при ошибке
+        if session: # Проверяем, что session существует, прежде чем вызывать rollback
+            await session.rollback()
         return False
     except Exception as e:
         logger.error(f"Ошибка при сохранении пользователя {telegram_id}: {e}")
-        await session.rollback() # Откатываем транзакцию при любой другой ошибке
+        if session: # Проверяем, что session существует
+            await session.rollback()
         return False
 
-# Добавьте здесь обработчики для callback_query, если они есть в этом файле
-# например:
-# @router.callback_query(F.data == "start_button")
-# async def handle_start_button(callback: CallbackQuery, state: FSMContext):
-#     await start_registration(callback.message, state)
-#     await callback.answer() # Важно ответить на callback_query
+# Обработчик для команды /start, если пользователь еще не зарегистрирован
+@router.message(Command("start"))
+async def cmd_start(message: Message, state: FSMContext):
+    # При старте мы начинаем регистрацию, если пользователь не существует
+    await start_registration(message, state)
+
+# Обработчик для кнопки "СТАРТ" в приветственном сообщении
+@router.callback_query(F.data == "start_button")
+async def handle_start_button(callback: CallbackQuery, state: FSMContext):
+    # CallbackQuery не имеет message, поэтому передаем callback.message
+    # Важно: callback.message может быть None, если сообщение удалено.
+    # Для надежности лучше использовать callback.message, если оно есть,
+    # или создать Message объект из callback.from_user
+    if callback.message:
+        await start_registration(callback.message, state)
+    else:
+        # Если message нет, создаем "фейковое" сообщение для start_registration
+        # Это упрощенный подход, для более robust решения можно создать Message
+        # из callback.from_user и bot
+        logger.warning(f"CallbackQuery без message от пользователя {callback.from_user.id}. Попытка начать регистрацию.")
+        # Может потребоваться более сложная логика, если message.text нужен
+        fake_message = Message(
+            message_id=callback.id, # Используем ID callback'а как ID сообщения
+            from_user=callback.from_user,
+            chat=callback.message.chat if callback.message else None, # Если callback.message None, chat тоже None
+            date=callback.message.date if callback.message else None,
+            text="/start", # Имитируем команду /start
+            bot=callback.bot # Передаем объект бота, если доступен
+        )
+        await start_registration(fake_message, state)
+        
+    await callback.answer() # Важно ответить на callback_query, чтобы убрать "часики"
