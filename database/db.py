@@ -1,7 +1,7 @@
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import MetaData # Хорошо, что используете MetaData явно, хотя для Base она и так доступна
+from sqlalchemy import MetaData
 
 # --- Глобальные переменные для движка и фабрики сессий ---
 engine = None
@@ -52,9 +52,7 @@ async def init_db():
     try:
         async with engine.begin() as conn:
             # Base.metadata.create_all создаст таблицы, определенные через Base.
-            # Убедитесь, что все ваши модели (User, Event и т.д.) импортированы
-            # в `database/models/__init__.py` или напрямую в `db.py`
-            # перед вызовом init_db, чтобы Base.metadata их "увидел".
+            # Благодаря импорту `models` ниже, Base.metadata "увидит" все ваши модели.
             await conn.run_sync(Base.metadata.create_all)
         print("База данных успешно инициализирована и таблицы созданы/проверены.")
     except Exception as e:
@@ -86,10 +84,7 @@ async def get_async_session() -> AsyncSession:
     finally:
         await session.close() # Закрываем сессию после использования
 
-# --- Важно: импортируйте ваши модели ЗДЕСЬ, чтобы Base.metadata их видел ---
-# Пример:
-# from database.models.user import User
-# from database.models.event import Event
-# from database.models.city import City
-# from database.models.rating import Rating
-# # ... и другие модели, которые вы определили
+# --- ОБЯЗАТЕЛЬНО: Импортируем ваш файл models.py, где определены все модели ---
+# Это позволяет SQLAlchemy обнаружить все модели, наследующие от Base,
+# и создать для них таблицы при вызове Base.metadata.create_all().
+from database import models # Импортируем models.py, который находится в той же папке database
