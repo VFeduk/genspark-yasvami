@@ -5,7 +5,8 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from keyboards.menu_kb import get_main_menu_keyboard
+# Исправленный импорт: указываем на правильное имя файла main_menu.py
+from keyboards.main_menu import get_main_menu_keyboard
 from database.db import get_async_session
 from database.models import User
 from sqlalchemy import select
