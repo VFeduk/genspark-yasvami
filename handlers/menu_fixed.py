@@ -591,12 +591,12 @@ async def process_other_messages(message: Message):
             "Используйте меню ниже для навигации или отправьте /help для получения справки.",
             reply_markup=get_main_menu_keyboard()
         )
-    else:
-         logger.info(f"Получено неизвестное сообщение от пользователя {message.from_user.id}: {message.text}")
-         await message.answer(
+   else:
+        logger.info(f"Получено неизвестное сообщение от пользователя {message.from_user.id}: {message.text}")
+        await message.answer(
             "Я не понял вашу команду. Воспользуйтесь меню ниже или отправьте /help для получения справки.",
-            reply_markup=get_main_menu_keyboard()
-        )
+            reply_markup=get_main_menu_keyboard # <-- Убедитесь, что здесь нет запятой
+        ) # <-- Убедитесь, что эта скобка закрыта и отступ правильный
 
 # Обработка необработанных callback_query
 @router.callback_query()
