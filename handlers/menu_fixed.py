@@ -193,17 +193,22 @@ async def show_profile(message: Message, state: FSMContext):
     logger.info(f"Пользователь {message.from_user.id} нажал 'Мой профиль'")
     
     try:
+        # ОЧИЩАЕМ состояние перед проверкой
+        await state.clear()
+        
         user_exists = await check_user_exists(message.from_user.id)
         logger.info(f"Проверка пользователя {message.from_user.id}: существует = {user_exists}")
         
         if not user_exists:
             await start_registration(message, state)
         else:
+            # TODO: Здесь будет полноценный просмотр профиля
             await message.answer(
                 "👤 <b>Ваш профиль</b>\n\n"
-                "Информация о вашем профиле загружается...\n"
-                "Функция просмотра и редактирования профиля будет добавлена в следующем обновлении.",
-                parse_mode="HTML"
+                "✅ Профиль заполнен и активен!\n\n"
+                "🔧 <i>Подробный просмотр профиля будет добавлен в следующем обновлении.</i>",
+                parse_mode="HTML",
+                reply_markup=get_main_menu_keyboard()
             )
     except Exception as e:
         logger.error(f"Ошибка в show_profile: {e}")
