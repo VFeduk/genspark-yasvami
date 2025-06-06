@@ -50,6 +50,23 @@ class MenuStates(StatesGroup):
 async def cmd_start(message: Message, state: FSMContext):
     """Обработчик команды /start"""
     try:
+        # СНАЧАЛА проверяем, зарегистрирован ли пользователь
+        user_exists = await check_user_exists(message.from_user.id)
+        
+        if user_exists:
+            # Если зарегистрирован - показываем главное меню
+            welcome_text = (
+                f"👋 Добро пожаловать обратно, {message.from_user.first_name}!\n\n"
+                "Выберите нужный раздел из меню ниже:"
+            )
+            await message.answer(
+                welcome_text,
+                reply_markup=get_main_menu_keyboard()
+            )
+            await state.clear()
+            return
+        
+        # Если НЕ зарегистрирован - показываем приветствие с кнопкой СТАРТ
         welcome_image_path = os.path.join("static", "welcome.jpg")
         
         if os.path.exists(welcome_image_path):
@@ -69,6 +86,16 @@ async def cmd_start(message: Message, state: FSMContext):
                 "или найти единомышленников на своем пути!) В общем нажимай кнопку \"СТАРТ\" и поехали!",
                 reply_markup=get_start_keyboard()
             )
+        
+        await state.set_state(MainState.waiting_for_start)
+        logger.info(f"Пользователь {message.from_user.id} запустил бота")
+        
+    except Exception as e:
+        logger.error(f"Ошибка в cmd_start: {e}")
+        await message.answer(
+            "Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже.",
+            reply_markup=get_main_menu_keyboard()
+        )
         
         await state.set_state(MainState.waiting_for_start)
         logger.info(f"Пользователь {message.from_user.id} запустил бота")
