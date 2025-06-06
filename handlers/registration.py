@@ -75,14 +75,16 @@ async def start_registration(message: Message, state: FSMContext):
 @router.message(RegistrationStates.waiting_for_city)
 async def process_city(message: Message, state: FSMContext):
     """Обработчик ввода города"""
-    city = message.text.strip().title()
     
-    if len(city) < 2 or len(city) > 50:
+    # ДОБАВИТЬ ЭТУ ПРОВЕРКУ В НАЧАЛО:
+    if message.text and message.text.startswith('/'):
         await message.answer(
-            "❌ Некорректное название города.\n\n"
-            "Пожалуйста, введите правильное название города (от 2 до 50 символов):"
+            "⚠️ Пожалуйста, завершите регистрацию сначала.\n\n"
+            "Введите название города или отправьте /start для начала заново:"
         )
         return
+    
+    city = message.text.strip().title()
     
     await state.update_data(city=city)
     
