@@ -337,9 +337,9 @@ async def back_to_rules_menu(callback: CallbackQuery):
     )
 
 @router.callback_query(F.data == "accept_rules")
-async def accept_rule(callback: CallbackQuery):
+async def accept_rule(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Вы приняли правила")
-    await show_rules_menu(callback, None)
+    await show_rules_menu(callback, state)  # ИСПРАВЛЕНО: передаем state
 
 @router.callback_query(F.data == "accept_all_rules")
 async def accept_all_rules(callback: CallbackQuery, state: FSMContext):
