@@ -96,16 +96,7 @@ async def cmd_start(message: Message, state: FSMContext):
             "Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже.",
             reply_markup=get_main_menu_keyboard()
         )
-        
-        await state.set_state(MainState.waiting_for_start)
-        logger.info(f"Пользователь {message.from_user.id} запустил бота")
-        
-    except Exception as e:
-        logger.error(f"Ошибка в cmd_start: {e}")
-        await message.answer(
-            "Произошла ошибка при запуске бота. Пожалуйста, попробуйте позже.",
-            reply_markup=get_main_menu_keyboard()
-        )
+
 
 # Обработчик команды /help
 @router.message(Command("help"))
@@ -222,6 +213,28 @@ async def create_event(message: Message, state: FSMContext):
     """Обработчик кнопки 'Создать мероприятие'"""
     logger.info(f"Пользователь {message.from_user.id} нажал 'Создать мероприятие'")
     
+    # ПРОВЕРЯЕМ регистрацию пользователя
+    try:
+        user_exists = await check_user_exists(message.from_user.id)
+        
+        if not user_exists:
+            await message.answer(
+                "⚠️ <b>Для создания мероприятий необходима регистрация</b>\n\n"
+                "Пожалуйста, сначала заполните ваш профиль:",
+                parse_mode="HTML"
+            )
+            await start_registration(message, state)
+            return
+            
+    except Exception as e:
+        logger.error(f"Ошибка при проверке пользователя в create_event: {e}")
+        await message.answer(
+            "❌ Произошла ошибка. Попробуйте позже.",
+            reply_markup=get_main_menu_keyboard()
+        )
+        return
+    
+    # Если пользователь зарегистрирован - показываем правила
     rules_text = (
         "📋 <b>Создание мероприятия</b>\n\n"
         "Перед созданием мероприятия вы должны ознакомиться с правилами "
