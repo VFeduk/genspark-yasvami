@@ -10,7 +10,7 @@ from keyboards.main_menu import get_main_menu_keyboard
 from database.db import get_async_session
 from database.models import User, Gender, UserType
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError # Явный импорт IntegrityError
+from sqlalchemy.exc import IntegrityError
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -28,17 +28,20 @@ async def check_user_exists(user_id: int) -> bool:
     Проверяет, существует ли пользователь в базе данных по telegram_id.
     Корректно использует асинхронную сессию.
     """
+    session = None
     try:
-        async with get_async_session() as session: # Сессия определяется здесь
-            result = await session.execute(
-                select(User).where(User.telegram_id == user_id)
-            )
-            user = result.scalar_one_or_none()
-            return user is not None
+        session = get_async_session()
+        result = await session.execute(
+            select(User).where(User.telegram_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        return user is not None
     except Exception as e:
         logger.error(f"Ошибка при проверке пользователя {user_id}: {e}")
-        # Здесь нет необходимости в session.rollback(), так как мы только читаем.
         return False
+    finally:
+        if session:
+            await session.close()
 
 async def start_registration(message: Message, state: FSMContext):
     """
@@ -237,37 +240,40 @@ async def save_user_to_db(telegram_id: int, username: str | None, user_data: dic
     Сохраняет нового пользователя в базу данных.
     Корректно использует асинхронную сессию и маппинг полей модели.
     """
-    session = None # Инициализируем session здесь, чтобы она была доступна в except блоках
+    session = None
     try:
-        async with get_async_session() as session:
-            new_user = User(
-                telegram_id=telegram_id,
-                username=username,
-                first_name=user_data['full_name'],
-                display_name=user_data['full_name'],
-                city=user_data['city'],
-                age=user_data['age'],
-                gender=Gender(user_data['gender']),
-                about=user_data['about_me'],
-                rating=100,
-                tokens=0,
-                user_type=UserType.REGULAR
-            )
-            
-            session.add(new_user)
-            await session.commit()
-            return True
-            
+        session = get_async_session()
+        new_user = User(
+            telegram_id=telegram_id,
+            username=username,
+            first_name=user_data['full_name'],
+            display_name=user_data['full_name'],
+            city=user_data['city'],
+            age=user_data['age'],
+            gender=Gender(user_data['gender']),
+            about=user_data['about_me'],
+            rating=100,
+            tokens=0,
+            user_type=UserType.REGULAR
+        )
+        
+        session.add(new_user)
+        await session.commit()
+        return True
+        
     except IntegrityError as e:
         logger.error(f"Ошибка уникальности при сохранении пользователя {telegram_id}: {e}")
-        if session: # Проверяем, что session существует, прежде чем вызывать rollback
+        if session:
             await session.rollback()
         return False
     except Exception as e:
         logger.error(f"Ошибка при сохранении пользователя {telegram_id}: {e}")
-        if session: # Проверяем, что session существует
+        if session:
             await session.rollback()
         return False
+    finally:
+        if session:
+            await session.close()
 
 # Обработчик для команды /start, если пользователь еще не зарегистрирован
 @router.message(Command("start"))
@@ -278,26 +284,10 @@ async def cmd_start(message: Message, state: FSMContext):
 # Обработчик для кнопки "СТАРТ" в приветственном сообщении
 @router.callback_query(F.data == "start_button")
 async def handle_start_button(callback: CallbackQuery, state: FSMContext):
-    # CallbackQuery не имеет message, поэтому передаем callback.message
-    # Важно: callback.message может быть None, если сообщение удалено.
-    # Для надежности лучше использовать callback.message, если оно есть,
-    # или создать Message объект из callback.from_user
+    """Обработчик кнопки СТАРТ"""
+    await callback.answer()
+    
     if callback.message:
         await start_registration(callback.message, state)
     else:
-        # Если message нет, создаем "фейковое" сообщение для start_registration
-        # Это упрощенный подход, для более robust решения можно создать Message
-        # из callback.from_user и bot
-        logger.warning(f"CallbackQuery без message от пользователя {callback.from_user.id}. Попытка начать регистрацию.")
-        # Может потребоваться более сложная логика, если message.text нужен
-        fake_message = Message(
-            message_id=callback.id, # Используем ID callback'а как ID сообщения
-            from_user=callback.from_user,
-            chat=callback.message.chat if callback.message else None, # Если callback.message None, chat тоже None
-            date=callback.message.date if callback.message else None,
-            text="/start", # Имитируем команду /start
-            bot=callback.bot # Передаем объект бота, если доступен
-        )
-        await start_registration(fake_message, state)
-        
-    await callback.answer() # Важно ответить на callback_query, чтобы убрать "часики"
+        logger.warning(f"CallbackQuery без message от пользователя {callback.from_user.id}")
