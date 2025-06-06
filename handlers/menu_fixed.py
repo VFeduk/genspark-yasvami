@@ -598,6 +598,48 @@ async def process_other_messages(message: Message):
             reply_markup=get_main_menu_keyboard # <-- Убедитесь, что здесь нет запятой
         ) # <-- Убедитесь, что эта скобка закрыта и отступ правильный
 
+# Обработчики для кнопок главного меню (Inline клавиатура)
+@router.callback_query(F.data == "profile")
+async def handle_profile_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для кнопки Мой профиль из главного меню"""
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    await show_profile(callback.message, state)
+
+@router.callback_query(F.data == "create_event")
+async def handle_create_event_callback(callback: CallbackQuery, state: FSMContext):
+    """Обработчик для кнопки Создать мероприятие из главного меню"""
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    await create_event(callback.message, state)
+
+@router.callback_query(F.data == "view_events")  
+async def handle_view_events_callback(callback: CallbackQuery):
+    """Обработчик для кнопки Посмотреть мероприятия из главного меню"""
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    await view_events(callback.message)
+
+@router.callback_query(F.data == "knowledge")
+async def handle_knowledge_callback(callback: CallbackQuery):
+    """Обработчик для кнопки База знаний из главного меню"""
+    await callback.answer()
+    try:
+        await callback.message.delete()
+    except:
+        pass
+    await knowledge_base(callback.message)
+
+
 # Обработка необработанных callback_query
 @router.callback_query()
 async def process_unknown_callback(callback: CallbackQuery):
