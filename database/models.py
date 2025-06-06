@@ -4,6 +4,7 @@ from typing import List, Optional
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Table, Enum as SQLEnum, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Table, Enum as SQLEnum, Text, BigInteger
 
 # ИСПРАВЛЕНО: Импортируем Base из db.py вместо создания нового
 from .db import Base
@@ -43,7 +44,7 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True)
-    telegram_id = Column(Integer, unique=True, nullable=False)
+    telegram_id = Column(BigInteger, unique=True, nullable=False)
     username = Column(String, nullable=True)
     first_name = Column(String)
     last_name = Column(String, nullable=True)
