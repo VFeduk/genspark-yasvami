@@ -275,12 +275,6 @@ async def save_user_to_db(telegram_id: int, username: str | None, user_data: dic
         if session:
             await session.close()
 
-# Обработчик для команды /start, если пользователь еще не зарегистрирован
-@router.message(Command("start"))
-async def cmd_start(message: Message, state: FSMContext):
-    # При старте мы начинаем регистрацию, если пользователь не существует
-    await start_registration(message, state)
-
 # Обработчик для кнопки "СТАРТ" в приветственном сообщении
 @router.callback_query(F.data == "start_button")
 async def handle_start_button(callback: CallbackQuery, state: FSMContext):
